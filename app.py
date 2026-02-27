@@ -6,9 +6,9 @@ import requests
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Flood Intelligence", layout="wide")
+st.set_page_config(page_title="Urban Flood Intelligence - India", layout="wide")
 
-# ---------- MODERN UI ----------
+# ---------- UI ----------
 st.markdown("""
 <style>
 body {background-color: #0e1117;}
@@ -31,10 +31,10 @@ st.markdown("""
 background: linear-gradient(90deg,#60a5fa,#22d3ee);
 -webkit-background-clip:text;
 -webkit-text-fill-color:transparent;'>
-Global Flood & Rainfall Intelligence
+🇮🇳 Smart Urban Flood Intelligence System
 </h1>
 <p style='text-align:center;color:gray;'>
-Real-time hydrometeorological monitoring & flood risk intelligence
+Monsoon rainfall monitoring & urban flood risk intelligence for Indian cities
 </p>
 """, unsafe_allow_html=True)
 
@@ -42,19 +42,26 @@ st.caption(f"Last updated: {datetime.now().strftime('%d %b %Y, %H:%M')}")
 
 API_KEY = "44e8c7f686dd477975e1eb85f8637d92"
 
-# ---------- CITY SEARCH ----------
-cities = ["Anantapur","Mumbai","London","Tokyo","New York","Sydney","Jakarta","Dubai","Paris","Singapore"]
-city_name = st.selectbox("🔍 Search City", cities, index=0)
+# ---------- MAJOR INDIAN CITIES ----------
+cities = {
+    "Bengaluru": (12.9716, 77.5946),
+    "Hyderabad": (17.3850, 78.4867),
+    "Mumbai": (19.0760, 72.8777),
+    "Chennai": (13.0827, 80.2707),
+    "Kolkata": (22.5726, 88.3639),
+    "Delhi": (28.6139, 77.2090),
+    "Pune": (18.5204, 73.8567),
+    "Ahmedabad": (23.0225, 72.5714),
+    "Vijayawada": (16.5062, 80.6480),
+    "Visakhapatnam": (17.6868, 83.2185),
+    "Patna": (25.5941, 85.1376),
+    "Guwahati": (26.1445, 91.7362)
+}
 
-# ---------- GET COORDINATES ----------
-geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit=1&appid={API_KEY}"
-geo = requests.get(geo_url).json()
+city_name = st.selectbox("Select Indian City", list(cities.keys()))
+lat, lon = cities[city_name]
 
-lat = geo[0]["lat"]
-lon = geo[0]["lon"]
-location = geo[0]["name"]
-
-# ---------- FORECAST DATA ----------
+# ---------- WEATHER DATA ----------
 forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
 forecast = requests.get(forecast_url).json()
 
@@ -79,8 +86,8 @@ elif rain_next < 10:
 else:
     intensity = "Heavy Rain"
 
-# ---------- AI RISK SCORE ----------
-risk_score = min(100, sum(rain_values) * 1.8)
+# ---------- URBAN FLOOD RISK INDEX ----------
+risk_score = min(100, sum(rain_values) * 2)
 
 if risk_score < 20:
     risk = "LOW"
@@ -92,16 +99,19 @@ else:
     risk = "HIGH"
     color = "red"
 
-# ---------- DASHBOARD ----------
-st.markdown('<div class="section">City Rainfall Dashboard</div>', unsafe_allow_html=True)
+# ---------- DRAINAGE OVERLOAD WARNING ----------
+drainage_warning = rain_next > 20
 
-c1,c2,c3,c4 = st.columns(4)
+# ---------- DASHBOARD ----------
+st.markdown('<div class="section">Urban Flood Dashboard</div>', unsafe_allow_html=True)
+
+c1, c2, c3, c4 = st.columns(4)
 
 cards = [
-    ("City", location),
+    ("City", city_name),
     ("Past Rain", f"{rain_past} mm"),
     ("Next Rain", f"{rain_next} mm"),
-    ("Flood Severity Index", f"{risk_score:.0f}/100"),
+    ("Urban Flood Risk Index", f"{risk_score:.0f}/100"),
 ]
 
 for col,(title,value) in zip([c1,c2,c3,c4], cards):
@@ -112,65 +122,59 @@ for col,(title,value) in zip([c1,c2,c3,c4], cards):
     </div>
     """, unsafe_allow_html=True)
 
-st.write(f"🌤 Current Condition: **{weather}**")
+st.write(f"🌤 Weather: **{weather}**")
 st.write(f"Rainfall Intensity: **{intensity}**")
 
+# ---------- ALERTS ----------
 if risk == "HIGH":
-    st.error("🚨 FLOOD ALERT: Immediate attention required")
+    st.error("🚨 HIGH URBAN FLOOD RISK")
 elif risk == "MODERATE":
-    st.warning("Waterlogging possible in low areas.")
+    st.warning("⚠ Waterlogging possible in low-lying areas")
 else:
-    st.success("Conditions safe.")
+    st.success("Conditions normal")
 
-# ---------- RAINFALL TREND ----------
+if drainage_warning:
+    st.error("⚠ Drainage Overload Warning: Heavy rainfall may overwhelm stormwater drains")
+
+# ---------- TREND ----------
 st.markdown('<div class="section">Rainfall Trend (Next 24 Hours)</div>', unsafe_allow_html=True)
-
 df = pd.DataFrame({"Time": times, "Rainfall": rain_values})
 st.line_chart(df.set_index("Time"))
 
 # ---------- CITY MAP ----------
-st.markdown('<div class="section">Flood Vulnerability & Risk Zones</div>', unsafe_allow_html=True)
+st.markdown('<div class="section">Flood Vulnerability Map</div>', unsafe_allow_html=True)
 
 city_map = folium.Map(location=[lat, lon], zoom_start=11)
 
-folium.Circle([lat,lon], radius=3000, color=color, fill=True, fill_color=color, fill_opacity=0.25).add_to(city_map)
+folium.Circle([lat, lon], radius=3000, color=color,
+              fill=True, fill_color=color, fill_opacity=0.25).add_to(city_map)
 
-folium.Marker([lat,lon], popup=f"{location} - Risk: {risk}",
+folium.Marker([lat, lon],
+              popup=f"{city_name} Risk: {risk}",
               icon=folium.Icon(color=color)).add_to(city_map)
 
-# Heatmap overlay
+# Simulated flood-prone hotspots
+hotspots = [
+    [lat+0.02, lon+0.02],
+    [lat-0.015, lon+0.01],
+    [lat+0.01, lon-0.02]
+]
+
+for h in hotspots:
+    folium.CircleMarker(h, radius=6, color="blue", fill=True).add_to(city_map)
+
 HeatMap([[lat, lon, rain_next]]).add_to(city_map)
-
-# Satellite precipitation layer
-folium.TileLayer(
-    tiles=f'https://tile.openweathermap.org/map/precipitation_new/{{z}}/{{x}}/{{y}}.png?appid={API_KEY}',
-    attr='OpenWeatherMap',
-    name='Precipitation',
-    overlay=True,
-    control=True
-).add_to(city_map)
-
-folium.LayerControl().add_to(city_map)
 
 st_folium(city_map, width=1200, height=450)
 
-# ---------- GLOBAL MONITOR ----------
-st.markdown('<div class="section">Global Heavy Rain Monitor</div>', unsafe_allow_html=True)
-
-global_cities = {
-    "Mumbai": (19.0760,72.8777),
-    "Jakarta": (-6.2088,106.8456),
-    "Tokyo": (35.6762,139.6503),
-    "New York": (40.7128,-74.0060),
-    "Sydney": (-33.8688,151.2093),
-    "London": (51.5074,-0.1278),
-}
+# ---------- NATIONAL MONITOR ----------
+st.markdown('<div class="section">Indian Cities Rainfall Monitor</div>', unsafe_allow_html=True)
 
 highest_city=None
 highest_rain=0
 city_rain_data={}
 
-for city,(clat,clon) in global_cities.items():
+for city,(clat,clon) in cities.items():
     url=f"https://api.openweathermap.org/data/2.5/forecast?lat={clat}&lon={clon}&appid={API_KEY}&units=metric"
     data=requests.get(url).json()
     rain_val=data["list"][0].get("rain",{}).get("3h",0)
@@ -187,48 +191,21 @@ for city,(clat,clon) in global_cities.items():
     else:
         st.success(f"{city}: Normal")
 
-# ---------- WORLD MAP ----------
-st.markdown('<div class="section">Global Rainfall Risk Map</div>', unsafe_allow_html=True)
-
-world_map=folium.Map(location=[20,0],zoom_start=2)
-
-for city,(clat,clon) in global_cities.items():
-    rain_val=city_rain_data[city]
-
-    if rain_val>=25:
-        c="red"
-    elif rain_val>5:
-        c="orange"
-    else:
-        c="green"
-
-    folium.Marker([clat,clon], tooltip=city,
-                  popup=f"{city}: {rain_val} mm",
-                  icon=folium.Icon(color=c)).add_to(world_map)
-
-st_folium(world_map, width=1200, height=500)
-
 if highest_city:
-    st.error(f"Highest rainfall risk: {highest_city} ({highest_rain} mm)")
+    st.error(f"⚠ Highest rainfall risk in India: {highest_city} ({highest_rain} mm)")
 
-# ---------- LEGEND ----------
-st.markdown("### Risk Legend")
-st.write("🟢 Low Risk")
-st.write("🟠 Moderate Risk")
-st.write("🔴 High Risk")
-
-# ---------- SAFETY ----------
-st.markdown('<div class="section">Safety Precautions</div>', unsafe_allow_html=True)
+# ---------- MONSOON PREPAREDNESS ----------
+st.markdown('<div class="section">Monsoon Preparedness & Safety</div>', unsafe_allow_html=True)
 
 tips=[
-"Avoid low-lying roads and underpasses.",
-"Do not drive through floodwater.",
-"Stay updated with weather alerts.",
-"Keep emergency supplies ready.",
-"Move valuables to higher levels if rain continues."
+"Avoid underpasses and low-lying roads during heavy rain.",
+"Plan alternate travel routes during monsoon alerts.",
+"Do not drive through waterlogged streets.",
+"Keep emergency contacts and supplies ready.",
+"Monitor local municipal flood alerts."
 ]
 
 for t in tips:
     st.write("✔",t)
 
-st.caption("Smart flood monitoring & disaster preparedness system")
+st.caption("Designed for Indian monsoon flood preparedness & smart city resilience")
