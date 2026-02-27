@@ -5,8 +5,9 @@ from folium.plugins import HeatMap
 import requests
 import pandas as pd
 from datetime import datetime
+import base64
 
-st.set_page_config(page_title="Urban Flood Intelligence - India", layout="wide")
+st.set_page_config(page_title="Urban Flood Intelligence India", layout="wide")
 
 # ---------- UI ----------
 st.markdown("""
@@ -34,7 +35,7 @@ background: linear-gradient(90deg,#60a5fa,#22d3ee);
 🇮🇳 Smart Urban Flood Intelligence System
 </h1>
 <p style='text-align:center;color:gray;'>
-Monsoon rainfall monitoring & urban flood risk intelligence for Indian cities
+Monsoon flood risk intelligence & emergency response system
 </p>
 """, unsafe_allow_html=True)
 
@@ -42,7 +43,16 @@ st.caption(f"Last updated: {datetime.now().strftime('%d %b %Y, %H:%M')}")
 
 API_KEY = "44e8c7f686dd477975e1eb85f8637d92"
 
-# ---------- MAJOR INDIAN CITIES ----------
+# ---------- ALARM ----------
+def play_alarm():
+    sound_url = "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
+    st.markdown(f"""
+        <audio autoplay>
+        <source src="{sound_url}" type="audio/wav">
+        </audio>
+    """, unsafe_allow_html=True)
+
+# ---------- INDIAN CITIES ----------
 cities = {
     "Bengaluru": (12.9716, 77.5946),
     "Hyderabad": (17.3850, 78.4867),
@@ -61,12 +71,12 @@ cities = {
 city_name = st.selectbox("Select Indian City", list(cities.keys()))
 lat, lon = cities[city_name]
 
-# ---------- WEATHER DATA ----------
-forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
-forecast = requests.get(forecast_url).json()
+# ---------- WEATHER ----------
+url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+forecast = requests.get(url).json()
 
-rain_values = []
-times = []
+rain_values=[]
+times=[]
 
 for entry in forecast["list"][:8]:
     rain = entry.get("rain", {}).get("3h", 0)
@@ -78,134 +88,156 @@ rain_past = rain_values[1]
 
 weather = forecast["list"][0]["weather"][0]["main"]
 
-# ---------- RAIN INTENSITY ----------
+# ---------- INTENSITY ----------
 if rain_next < 2:
-    intensity = "Light Rain"
+    intensity="Light Rain"
 elif rain_next < 10:
-    intensity = "Moderate Rain"
+    intensity="Moderate Rain"
 else:
-    intensity = "Heavy Rain"
+    intensity="Heavy Rain"
 
-# ---------- URBAN FLOOD RISK INDEX ----------
-risk_score = min(100, sum(rain_values) * 2)
+# ---------- FLOOD RISK INDEX ----------
+risk_score = min(100, sum(rain_values)*2)
 
 if risk_score < 20:
-    risk = "LOW"
-    color = "green"
+    risk="LOW"
+    color="green"
 elif risk_score < 50:
-    risk = "MODERATE"
-    color = "orange"
+    risk="MODERATE"
+    color="orange"
 else:
-    risk = "HIGH"
-    color = "red"
+    risk="HIGH"
+    color="red"
 
-# ---------- DRAINAGE OVERLOAD WARNING ----------
 drainage_warning = rain_next > 20
 
 # ---------- DASHBOARD ----------
 st.markdown('<div class="section">Urban Flood Dashboard</div>', unsafe_allow_html=True)
 
-c1, c2, c3, c4 = st.columns(4)
+c1,c2,c3,c4 = st.columns(4)
 
-cards = [
-    ("City", city_name),
-    ("Past Rain", f"{rain_past} mm"),
-    ("Next Rain", f"{rain_next} mm"),
-    ("Urban Flood Risk Index", f"{risk_score:.0f}/100"),
+cards=[
+("City",city_name),
+("Past Rain",f"{rain_past} mm"),
+("Next Rain",f"{rain_next} mm"),
+("Flood Risk Index",f"{risk_score:.0f}/100")
 ]
 
-for col,(title,value) in zip([c1,c2,c3,c4], cards):
+for col,(t,v) in zip([c1,c2,c3,c4],cards):
     col.markdown(f"""
     <div class="metric">
-        <div class="metric-title">{title}</div>
-        <div class="metric-value">{value}</div>
+    <div class="metric-title">{t}</div>
+    <div class="metric-value">{v}</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,unsafe_allow_html=True)
 
 st.write(f"🌤 Weather: **{weather}**")
 st.write(f"Rainfall Intensity: **{intensity}**")
 
-# ---------- ALERTS ----------
-if risk == "HIGH":
-    st.error("🚨 HIGH URBAN FLOOD RISK")
-elif risk == "MODERATE":
-    st.warning("⚠ Waterlogging possible in low-lying areas")
+# ---------- ALERT ----------
+if risk=="HIGH":
+    st.error("🚨 EXTREME URBAN FLOOD RISK")
+    play_alarm()
+elif risk=="MODERATE":
+    st.warning("⚠ Waterlogging possible")
 else:
     st.success("Conditions normal")
 
 if drainage_warning:
-    st.error("⚠ Drainage Overload Warning: Heavy rainfall may overwhelm stormwater drains")
+    st.error("⚠ Drainage overload risk due to heavy rainfall")
 
 # ---------- TREND ----------
 st.markdown('<div class="section">Rainfall Trend (Next 24 Hours)</div>', unsafe_allow_html=True)
-df = pd.DataFrame({"Time": times, "Rainfall": rain_values})
+df=pd.DataFrame({"Time":times,"Rainfall":rain_values})
 st.line_chart(df.set_index("Time"))
 
-# ---------- CITY MAP ----------
-st.markdown('<div class="section">Flood Vulnerability Map</div>', unsafe_allow_html=True)
+# ---------- EMERGENCY RESPONSE ----------
+st.markdown('<div class="section">Emergency Response</div>', unsafe_allow_html=True)
 
-city_map = folium.Map(location=[lat, lon], zoom_start=11)
+if risk=="HIGH":
+    st.warning("Move to elevated safe areas immediately")
 
-folium.Circle([lat, lon], radius=3000, color=color,
-              fill=True, fill_color=color, fill_opacity=0.25).add_to(city_map)
+    st.markdown("### ☎ Emergency Contacts")
+    st.write("Disaster Management: **112**")
+    st.write("Flood Helpline: **1070**")
+    st.write("District Control Room: **1077**")
 
-folium.Marker([lat, lon],
-              popup=f"{city_name} Risk: {risk}",
-              icon=folium.Icon(color=color)).add_to(city_map)
+    safe_zones=[
+        ("Government School High Ground", lat+0.03, lon+0.02),
+        ("City Stadium Safe Zone", lat-0.025, lon+0.03),
+        ("Collector Office Complex", lat+0.02, lon-0.025)
+    ]
 
-# Simulated flood-prone hotspots
-hotspots = [
-    [lat+0.02, lon+0.02],
-    [lat-0.015, lon+0.01],
-    [lat+0.01, lon-0.02]
-]
+    st.markdown("### 🧭 Safe Elevated Areas")
+    for name,_,_ in safe_zones:
+        st.write("✔",name)
 
-for h in hotspots:
-    folium.CircleMarker(h, radius=6, color="blue", fill=True).add_to(city_map)
+    st.markdown("### 🚦 Traffic Diversion")
+    st.write("Use elevated flyovers and ring roads.")
+    st.write("Avoid underpasses and low roads.")
+    st.write("Follow police diversion routes.")
+else:
+    st.info("No evacuation required.")
 
-HeatMap([[lat, lon, rain_next]]).add_to(city_map)
+# ---------- MAP ----------
+st.markdown('<div class="section">Flood Risk & Safe Zone Map</div>', unsafe_allow_html=True)
 
-st_folium(city_map, width=1200, height=450)
+m=folium.Map(location=[lat,lon],zoom_start=11)
+
+folium.Circle([lat,lon],radius=3000,color=color,
+fill=True,fill_color=color,fill_opacity=0.25).add_to(m)
+
+# hotspots
+for h in [[lat+0.02,lon+0.02],[lat-0.015,lon+0.01],[lat+0.01,lon-0.02]]:
+    folium.CircleMarker(h,radius=6,color="blue",fill=True).add_to(m)
+
+# safe zones markers
+if risk=="HIGH":
+    for name,slat,slon in safe_zones:
+        folium.Marker([slat,slon],popup=name,
+        icon=folium.Icon(color="green")).add_to(m)
+
+HeatMap([[lat,lon,rain_next]]).add_to(m)
+
+st_folium(m,width=1200,height=450)
 
 # ---------- NATIONAL MONITOR ----------
 st.markdown('<div class="section">Indian Cities Rainfall Monitor</div>', unsafe_allow_html=True)
 
 highest_city=None
 highest_rain=0
-city_rain_data={}
 
 for city,(clat,clon) in cities.items():
     url=f"https://api.openweathermap.org/data/2.5/forecast?lat={clat}&lon={clon}&appid={API_KEY}&units=metric"
     data=requests.get(url).json()
-    rain_val=data["list"][0].get("rain",{}).get("3h",0)
-    city_rain_data[city]=rain_val
+    rain=data["list"][0].get("rain",{}).get("3h",0)
 
-    if rain_val>highest_rain:
-        highest_rain=rain_val
+    if rain>highest_rain:
+        highest_rain=rain
         highest_city=city
 
-    if rain_val>=25:
+    if rain>=25:
         st.error(f"{city}: EXTREME RAIN")
-    elif rain_val>5:
+    elif rain>5:
         st.warning(f"{city}: Heavy Rain")
     else:
         st.success(f"{city}: Normal")
 
 if highest_city:
-    st.error(f"⚠ Highest rainfall risk in India: {highest_city} ({highest_rain} mm)")
+    st.error(f"⚠ Highest rainfall risk: {highest_city} ({highest_rain} mm)")
 
-# ---------- MONSOON PREPAREDNESS ----------
-st.markdown('<div class="section">Monsoon Preparedness & Safety</div>', unsafe_allow_html=True)
+# ---------- SAFETY ----------
+st.markdown('<div class="section">Monsoon Preparedness</div>', unsafe_allow_html=True)
 
 tips=[
-"Avoid underpasses and low-lying roads during heavy rain.",
-"Plan alternate travel routes during monsoon alerts.",
-"Do not drive through waterlogged streets.",
-"Keep emergency contacts and supplies ready.",
-"Monitor local municipal flood alerts."
+"Avoid low-lying roads during heavy rain.",
+"Do not drive through floodwater.",
+"Plan alternate routes.",
+"Keep emergency supplies ready.",
+"Follow municipal alerts."
 ]
 
 for t in tips:
     st.write("✔",t)
 
-st.caption("Designed for Indian monsoon flood preparedness & smart city resilience")
+st.caption("Designed for Indian urban flood preparedness & emergency response")
