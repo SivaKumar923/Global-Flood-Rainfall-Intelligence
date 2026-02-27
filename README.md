@@ -3,7 +3,7 @@
 AI-powered real-time rainfall monitoring and flood risk prediction system.
 
 🔗 **Live App:**  
-https://global-flood-rainfall-intelligence-mwgbjvev3pzbigshnauiao.streamlit.app/
+https://global-flood-rainfall-intelligence-mwgbjvev3pzbigshnauiao.streamlit.app
 
 ---
 
